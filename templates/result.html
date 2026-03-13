@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detection Result - Fake Image Detection System</title>
+
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <!-- Google Fonts - Poppins -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="container-fluid min-vh-100 d-flex align-items-center justify-content-center py-5">
+    <div class="container">
+      <!-- Header -->
+      <div class="text-center mb-5">
+        <h2 class="display-5 fw-bold mb-3">
+          <i class="fas fa-clipboard-check text-primary me-2"></i>
+          Detection Result
+        </h2>
+      </div>
+
+      <!-- Result Card -->
+      <div class="row justify-content-center">
+        <div class="col-lg-10 col-md-12">
+          <div class="card shadow-lg border-0 result-card fade-in">
+            <div class="card-body p-5">
+              <div class="row mb-4">
+                <!-- Image + views -->
+                <div class="col-md-6 mb-4 mb-md-0">
+                  <h5 class="mb-3">
+                    <i class="fas fa-image me-2 text-primary"></i>Analysis Views
+                  </h5>
+
+                  <div class="view-toggle mb-2">
+                    <button class="btn-toggle active" data-view="ela">ELA View</button>
+                    <button class="btn-toggle" data-view="gradcam">Model Focus View</button>
+                  </div>
+
+                  <div id="ela-container" class="view-container">
+                    <div class="image-container">
+                      <div class="img-compare-container">
+                        <!-- Left: original -->
+                        <img src="{{ url_for('uploaded_file', filename=image_filename) }}"
+                             alt="Original Image"
+                             class="img-compare img-left">
+
+                        <!-- Right: ELA -->
+                        <img src="{% if ela_filename %}{{ url_for('uploaded_file', filename=ela_filename) }}{% else %}{{ url_for('uploaded_file', filename=image_filename) }}{% endif %}"
+                             alt="ELA Image"
+                             class="img-compare img-right">
+
+                        <div class="img-compare-handle">
+                          <span class="handle-line"></span>
+                          <span class="handle-circle"></span>
+                        </div>
+                      </div>
+                      <small class="text-muted d-block mt-2">
+                        Drag the slider to compare original and ELA view.
+                      </small>
+                    </div>
+                  </div>
+
+                  <div id="gradcam-container" class="view-container" style="display:none;">
+                    {% if gradcam_filename %}
+                    <img src="{{ url_for('uploaded_file', filename=gradcam_filename) }}"
+                         class="img-fluid rounded"
+                         alt="Grad-CAM overlay">
+                    <small class="text-muted d-block mt-2">
+                      Colored regions show where the model focused while making its decision.
+                    </small>
+                    {% else %}
+                    <p class="text-muted">Grad-CAM view is not available for this image.</p>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <!-- Result / details panel -->
+                <div class="col-md-6">
+                  <h5 class="mb-3">
+                    <i class="fas fa-chart-bar me-2 text-primary"></i>Analysis Summary
+                  </h5>
+
+                  <!-- Prediction Badge -->
+                  <div class="result-badge mb-4">
+                    {% if prediction == 'Real' %}
+                      <div class="alert alert-success d-flex align-items-center" role="alert">
+                        <i class="fas fa-check-circle fa-2x me-3"></i>
+                        <div>
+                          <h4 class="alert-heading mb-1">Real Image</h4>
+                          <p class="mb-0">This image appears to be authentic.</p>
+                        </div>
+                      </div>
+                    {% else %}
+                      <div class="alert alert-danger d-flex align-items-center" role="alert">
+                        <i class="fas fa-times-circle fa-2x me-3"></i>
+                        <div>
+                          <h4 class="alert-heading mb-1">Fake Image</h4>
+                          <p class="mb-0">This image may be AI-generated or manipulated.</p>
+                        </div>
+                      </div>
+                    {% endif %}
+                  </div>
+
+                  <!-- Confidence bar (compact) -->
+                  <div class="result-details-card mb-4">
+                    <div class="pred-label {{ prediction|lower }}">
+                      {{ prediction }} image
+                    </div>
+
+                    <div class="confidence-bar">
+                      <div class="confidence-fill" style="width: {{ confidence }}%;"></div>
+                    </div>
+                    <p class="confidence-text">Model confidence: {{ confidence }}%</p>
+
+                    <h6 class="mt-3 mb-2">
+                      <i class="fas fa-info-circle me-2 text-primary"></i>Why this result?
+                    </h6>
+                    <ul class="why-list mb-0">
+                      {% if prediction == 'Fake' %}
+                        <li>Strong localized artifacts detected in highlighted regions.</li>
+                        <li>Model attention is concentrated on suspicious areas in the Grad‑CAM view.</li>
+                      {% else %}
+                        <li>No strong localized artifacts detected by ELA.</li>
+                        <li>Model attention is more uniformly distributed across the image.</li>
+                      {% endif %}
+                    </ul>
+                  </div>
+
+                  <!-- Technical info -->
+                  <div class="info-section">
+                    <div class="card border-0 bg-light">
+                      <div class="card-body">
+                        <h6 class="card-title mb-3">
+                          <i class="fas fa-microchip me-2 text-primary"></i>Technical Details
+                        </h6>
+                        <ul class="list-unstyled mb-0">
+                          <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Image processed successfully
+                          </li>
+                          <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            Deep learning model (ResNet50) analysis complete
+                          </li>
+                          <li>
+                            <i class="fas fa-check text-success me-2"></i>
+                            ELA and attention‑based visualization generated
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- History section -->
+              {% if history %}
+              <div class="row mt-4">
+                <div class="col-12">
+                  <h5 class="mb-3">
+                    <i class="fas fa-clock-rotate-left me-2 text-primary"></i>Recent Analyses
+                  </h5>
+                  <div class="history-grid">
+                    {% for item in history %}
+                    <div class="history-card">
+                      <img src="{{ url_for('uploaded_file', filename=item.filename) }}" alt="Previous image">
+                      <div class="history-info">
+                        <span class="history-label {{ item.prediction|lower }}">{{ item.prediction }}</span>
+                        <span class="history-conf">{{ item.confidence }}%</span>
+                      </div>
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+              {% endif %}
+
+              <!-- Action Buttons -->
+              <div class="row mt-4">
+                <div class="col-12 text-center">
+                  <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg me-3">
+                    <i class="fas fa-upload me-2"></i>Try Another Image
+                  </a>
+                  <button onclick="window.print()" class="btn btn-outline-secondary btn-lg">
+                    <i class="fas fa-print me-2"></i>Print Result
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Disclaimer -->
+      <div class="row justify-content-center mt-4">
+        <div class="col-lg-10 col-md-12">
+          <div class="alert alert-info border-0" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Note:</strong> This is a demonstration system. Results are based on pattern analysis 
+            and should be used as a reference only. For critical applications, consult with image forensics experts.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap 5 JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Custom JS -->
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
